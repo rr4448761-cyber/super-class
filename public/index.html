@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - WhatsApp Class</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body style="display:flex; justify-content:center; align-items:center; height:100vh;">
+    <div class="glass" style="width: 90%; max-width: 400px; padding: 40px; text-align: center;">
+        <h1 style="color: var(--neon); margin-bottom: 10px; font-size: 24px;">WhatsApp Class</h1>
+        <p style="color: #888; margin-bottom: 30px; font-size: 14px;">Ultimate Digital Classroom</p>
+        
+        <div id="loginForm">
+            <input type="text" id="username" class="input" placeholder="Username" required>
+            <input type="password" id="password" class="input" placeholder="Password" required>
+            <button class="btn" style="width: 100%;" onclick="login()">Masuk Sistem</button>
+            <p style="margin-top: 20px; font-size: 13px; color: #888;">Belum punya akun? <span style="color: var(--neon); cursor: pointer;" onclick="toggleForm()">Daftar</span></p>
+        </div>
+
+        <div id="registerForm" style="display: none;">
+            <input type="text" id="regName" class="input" placeholder="Nama Lengkap" required>
+            <input type="text" id="regUsername" class="input" placeholder="Username" required>
+            <input type="password" id="regPassword" class="input" placeholder="Password" required>
+            <button class="btn" style="width: 100%;" onclick="register()">Daftar Akun</button>
+            <p style="margin-top: 20px; font-size: 13px; color: #888;">Sudah punya akun? <span style="color: var(--neon); cursor: pointer;" onclick="toggleForm()">Login</span></p>
+        </div>
+    </div>
+    <script>
+        function toggleForm() {
+            const login = document.getElementById('loginForm');
+            const reg = document.getElementById('registerForm');
+            login.style.display = login.style.display === 'none' ? 'block' : 'none';
+            reg.style.display = reg.style.display === 'none' ? 'block' : 'none';
+        }
+        async function login() {
+            const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username: document.getElementById('username').value, password: document.getElementById('password').value })});
+            const data = await res.json();
+            if(data.success) window.location.href = '/dashboard'; else alert(data.message);
+        }
+        async function register() {
+            const res = await fetch('/api/register', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ full_name: document.getElementById('regName').value, username: document.getElementById('regUsername').value, password: document.getElementById('regPassword').value })});
+            const data = await res.json();
+            if(data.success) { alert('Registrasi Berhasil! Silakan Login.'); toggleForm(); } else alert(data.message);
+        }
+    </script>
+</body>
+</html>

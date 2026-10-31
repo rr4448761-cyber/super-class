@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - WhatsApp by kyz</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .layout { display: flex; height: 100vh; }
+        .sidebar { width: 250px; padding: 20px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+        .nav-item { padding: 15px; border-radius: 10px; cursor: pointer; color: #aaa; transition: 0.3s; display: flex; align-items: center; gap: 15px; }
+        .nav-item:hover, .nav-item.active { background: rgba(255,0,51,0.1); color: var(--neon); border-left: 3px solid var(--neon); }
+        .main { flex: 1; padding: 30px; overflow-y: auto; }
+        .grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { padding: 20px; }
+        .card h3 { color: var(--neon); margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .ai-chat { display: flex; flex-direction: column; height: 300px; }
+        .ai-messages { flex: 1; overflow-y: auto; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar glass" style="border-radius: 0; height: 100vh;">
+            <h2 style="color: var(--neon); font-size: 20px; margin-bottom: 20px; text-align: center;">WA CLASS</h2>
+            <div class="nav-item active"><i class="fas fa-home"></i> Dashboard</div>
+            <div class="nav-item" onclick="window.location.href='/chat'"><i class="fas fa-comment"></i> Chat & Calls</div>
+            <div class="nav-item"><i class="fas fa-users"></i> Social Timeline</div>
+            <div class="nav-item"><i class="fas fa-book"></i> Classroom</div>
+            <div class="nav-item"><i class="fas fa-wallet"></i> Finance</div>
+            <div class="nav-item"><i class="fas fa-shield-alt"></i> Admin Panel</div>
+        </div>
+        
+        <div class="main">
+            <h1 style="margin-bottom: 30px;">Selamat Datang, <span id="userName" style="color: var(--neon);">Loading...</span></h1>
+            
+            <div class="grid-cards">
+                <!-- AI ASSISTANT -->
+                <div class="glass card">
+                    <h3><i class="fas fa-robot"></i> AI Tutor & Assistant</h3>
+                    <div class="ai-chat">
+                        <div class="ai-messages" id="aiMsgs"><div style="color:#aaa; font-size:12px; margin-bottom:5px;">AI: Halo! Saya asisten belajarmu. Tanya apa saja.</div></div>
+                        <div style="display:flex; gap:10px;">
+                            <input type="text" id="aiInput" class="input" placeholder="Tanya materi..." style="margin:0;">
+                            <button class="btn" onclick="askAI()"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CLASSROOM -->
+                <div class="glass card">
+                    <h3><i class="fas fa-book-open"></i> Tugas Terbaru</h3>
+                    <div style="margin-bottom: 10px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; border-left: 3px solid var(--neon);">
+                        <b>Matematika:</b> Latihan Bab 3<br><small style="color:#888;">Deadline: Besok</small>
+                    </div>
+                    <div style="margin-bottom: 10px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; border-left: 3px solid #fff;">
+                        <b>Fisika:</b> Laporan Praktikum<br><small style="color:#888;">Deadline: 3 Hari lagi</small>
+                    </div>
+                    <button class="btn" style="width:100%; margin-top:10px;">Absen via QR Code</button>
+                </div>
+
+                <!-- FINANCE -->
+                <div class="glass card">
+                    <h3><i class="fas fa-money-bill-wave"></i> Kas Kelas</h3>
+                    <h1 style="color: #00ff88; margin-bottom: 15px;">Rp 1.500.000</h1>
+                    <small style="color: #aaa;">Terakhir update: Hari ini</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        async function init() {
+            const res = await fetch('/api/me');
+            if(!res.ok) window.location.href = '/';
+            const user = await res.json();
+            document.getElementById('userName').innerText = user.role;
+        }
+        async function askAI() {
+            const input = document.getElementById('aiInput');
+            const text = input.value;
+            if(!text) return;
+            document.getElementById('aiMsgs').innerHTML += `<div style="text-align:right; color:#fff; margin-bottom:5px;">You: ${text}</div>`;
+            input.value = '';
+            
+            const res = await fetch('/api/ai', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ prompt: text })});
+            const data = await res.json();
+            document.getElementById('aiMsgs').innerHTML += `<div style="color:var(--neon); margin-bottom:5px;">${data.reply}</div>`;
+            document.getElementById('aiMsgs').scrollTop = document.getElementById('aiMsgs').scrollHeight;
+        }
+        init();
+    </script>
+</body>
+</html>

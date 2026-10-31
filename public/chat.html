@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat & Calls - WA Class</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .chat-layout { display: flex; height: 100vh; }
+        .sidebar-chat { width: 300px; border-right: 1px solid var(--border); background: rgba(0,0,0,0.4); }
+        .chat-area { flex: 1; display: flex; flex-direction: column; }
+        .chat-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 15px; }
+        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 70%; padding: 10px 15px; border-radius: 10px; font-size: 14px; position: relative; }
+        .msg.sent { background: rgba(255,0,51,0.2); border: 1px solid rgba(255,0,51,0.4); align-self: flex-end; border-bottom-right-radius: 0; }
+        .msg.received { background: rgba(255,255,255,0.1); border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 0; }
+        .input-area { padding: 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; background: rgba(0,0,0,0.6); }
+        .input-area input { margin-bottom: 0; border: none; background: rgba(255,255,255,0.1); }
+        .call-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; flex-direction: column; }
+        .call-overlay.active { display: flex; }
+        video { width: 100%; flex: 1; object-fit: cover; background: #111; }
+        .local-vid { position: absolute; top: 20px; right: 20px; width: 120px; height: 160px; border-radius: 10px; border: 2px solid var(--neon); z-index: 10; }
+    </style>
+</head>
+<body>
+    <div class="chat-layout">
+        <div class="sidebar-chat">
+            <div style="padding: 20px; font-weight: bold; border-bottom: 1px solid var(--border); color: var(--neon);">Chats</div>
+            <!-- Contoh Kontak -->
+            <div style="padding: 15px 20px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px;" onclick="openChat(2, 'Budi (Guru)')">
+                <div style="width:40px; height:40px; border-radius:50%; background:var(--neon); display:flex; justify-content:center; align-items:center;"><i class="fas fa-user"></i></div>
+                <div><b>Budi (Guru)</b><br><small style="color:#888;">Online</small></div>
+            </div>
+        </div>
+        
+        <div class="chat-area">
+            <div class="chat-header">
+                <div style="width:40px; height:40px; border-radius:50%; background:var(--neon); display:flex; justify-content:center; align-items:center;"><i class="fas fa-user"></i></div>
+                <div style="flex:1;"><b id="chatName">Pilih Kontak</b><br><small id="chatStatus" style="color:#00ff88;">Online</small></div>
+                <button class="btn" onclick="startCall(false)" style="padding:10px; border-radius:50%;"><i class="fas fa-phone"></i></button>
+                <button class="btn" onclick="startCall(true)" style="padding:10px; border-radius:50%;"><i class="fas fa-video"></i></button>
+            </div>
+            
+            <div class="messages" id="messages"></div>
+            
+            <div class="input-area">
+                <input type="file" id="mediaInput" accept="image/*" style="display:none" onchange="sendMedia(event)">
+                <button style="background:none; border:none; color:#aaa; cursor:pointer;" onclick="document.getElementById('mediaInput').click()"><i class="fas fa-image fa-lg"></i></button>
+                <input type="text" id="msgInput" placeholder="Ketik pesan..." onkeypress="if(event.key==='Enter')sendMsg()">
+                <button class="btn" onclick="sendMsg()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Call Overlay -->
+    <div class="call-overlay" id="callOverlay">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <video id="localVideo" autoplay playsinline muted class="local-vid"></video>
+        <div style="text-align:center; padding:20px; background:#111;">
+            <button class="btn" style="background:#ff0000; box-shadow:0 0 10px #ff0000;" onclick="endCall()"><i class="fas fa-phone-slash"></i> Akhiri</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script>
+        const socket = io();
+        let currentUser = null; let activeChatId = null;
+        let peer = null; let localStream = null; let currentCall = null;
+
+        socket.on('connect', () => {
+            fetch('/api/me').then(r => r.json()).then(user => {
+                currentUser = user;
+                socket.emit('join', user.id);
+                peer = new Peer(`wa-class-${user.id}`, { config: { 'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }] } });
+                
+                peer.on('call', (call) => {
+                    if(confirm('Panggilan masuk. Terima?')) {
+                        navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+                            localStream = stream; document.getElementById('localVideo').srcObject = stream;
+                            document.getElementById('callOverlay').classList.add('active');
+                            call.answer(stream); currentCall = call;
+                            call.on('stream', remote => { document.getElementById('remoteVideo').srcObject = remote; });
+                        });
+                    } else call.close();
+                });
+            });
+        });
+
+        function openChat(id, name) {
+            activeChatId = id;
+            document.getElementById('chatName').innerText = name;
+            document.getElementById('messages').innerHTML = ''; // Load history di sini
+        }
+
+        socket.on('receive_message', (msg) => {
+            if(msg.sender_id == activeChatId || msg.receiver_id == activeChatId) {
+                appendMsg(msg);
+            }
+        });
+
+        function appendMsg(msg) {
+            const div = document.createElement('div');
+            div.className = `msg ${msg.sender_id == currentUser.id ? 'sent' : 'received'}`;
+            let mediaHtml = msg.media ? `<img src="${msg.media}" style="max-width:100%; border-radius:5px; margin-bottom:5px;"><br>` : '';
+            div.innerHTML = `${mediaHtml}${msg.message || ''}`;
+            document.getElementById('messages').appendChild(div);
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+        }
+
+        function sendMsg() {
+            const text = document.getElementById('msgInput').value;
+            if(!text || !activeChatId) return;
+            socket.emit('send_message', { sender_id: currentUser.id, receiver_id: activeChatId, message: text, media: null, media_type: null });
+            document.getElementById('msgInput').value = '';
+        }
+
+        function sendMedia(e) {
+            const file = e.target.files[0]; if(!file || !activeChatId) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                socket.emit('send_message', { sender_id: currentUser.id, receiver_id: activeChatId, message: '', media: ev.target.result, media_type: 'image' });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // WEBRTC CALLS
+        function startCall(isVideo) {
+            if(!activeChatId) return alert('Pilih chat dulu');
+            navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true }).then(stream => {
+                localStream = stream; document.getElementById('localVideo').srcObject = stream;
+                document.getElementById('callOverlay').classList.add('active');
+                currentCall = peer.call(`wa-class-${activeChatId}`, stream);
+                currentCall.on('stream', remote => { document.getElementById('remoteVideo').srcObject = remote; });
+            }).catch(err => alert('Izin kamera ditolak!'));
+        }
+        function endCall() {
+            if(currentCall) currentCall.close();
+            if(localStream) localStream.getTracks().forEach(t => t.stop());
+            document.getElementById('callOverlay').classList.remove('active');
+        }
+    </script>
+</body>
+</html>
